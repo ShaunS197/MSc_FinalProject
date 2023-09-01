@@ -1,0 +1,205 @@
+---
+title: "Analysis"
+author: '220225605'
+date: "`r Sys.Date()`"
+output:
+  word_document: default
+  html_document: default
+---
+
+# MSc Dissertation  
+
+## Does ethnicity and income moderate the relationship between the consumption of saturated fats and free sugars and BMI?  
+
+### Loading the required libraries  
+
+```{r setup, echo = TRUE, warning = FALSE}
+library(here)
+library(tidyverse)
+library(ggfortify)
+```
+
+### Importing cleaned and processed data 
+
+```{r load, echo = TRUE, warning = FALSE}
+load(here("processed data/ProcessedData.RData"))
+```
+
+### Visualising the outcome variable 
+
+```{r viz_outcome, echo = TRUE, warning = FALSE}
+# density plots for the outcome variable 
+p <- ggplot(FinalData, aes(x = bmival))
+p + geom_density(color = "darkblue", fill = "lightblue")
+
+# checking for outliers
+boxplot(FinalData$bmival)
+
+# following the exclusion criteria (removal of participants with a BMI less than 18 and BMI above 45)
+FinalDataTemp <- FinalData[FinalData$bmival > 18,]
+FinalDataTemp <- FinalDataTemp[FinalDataTemp$bmival < 40,]
+
+# checking for the range 
+range(FinalDataTemp$bmival)
+
+# density plot of the outcome variable after the removal of underweight and morbidly obese participants  
+p1 <- ggplot(FinalDataTemp, aes(x = bmival))
+p1 + geom_density(color = "darkblue", fill = "lightblue")
+```
+
+### Checking the relationship between predictors and the outcome variable 
+
+```{r relationship, echo = TRUE, warning = FALSE}
+# Predictor 1 - Saturated Fatty Acids ----------------------------------------
+ggplot(FinalData, aes(x = Saturatedfattyacidsg)) + geom_density(color = "darkblue", fill = "lightblue")+ labs(x = "Saturated Fatty Acids",  y = "BMI")
+
+# checking for outliers 
+boxplot(FinalData$Saturatedfattyacidsg)
+
+# removing outliers 
+FinalDataTemp <- FinalDataTemp[FinalDataTemp$Saturatedfattyacidsg < 50,]
+ggplot(FinalDataTemp, aes(x = Saturatedfattyacidsg)) + geom_density(color = "darkblue", fill = "lightblue")
+
+# scatter plot with saturated fat intake on the x axis and BMI on the y axis 
+p1 <- ggplot(FinalDataTemp, aes(x = Saturatedfattyacidsg, y = bmival))
+p1 + geom_point(color = "grey0")+ labs(x = "Saturated Fatty Acids",  y = "BMI") + geom_smooth(method = "lm")
+
+# Predictor 2 - Free Sugar Consumption-----------------------
+ggplot(FinalData, aes(x = FreeSugarsg)) + geom_density(color = "darkblue", fill = "lightblue") + labs(x = "Free Sugars",  y = "BMI")
+
+# checking for outliers 
+boxplot(FinalData$FreeSugarsg)
+
+# removal of outliers 
+FinalDataTemp <- FinalDataTemp[FinalDataTemp$FreeSugarsg < 150,]
+range(FinalDataTemp$FreeSugarsg)
+ggplot(FinalDataTemp, aes(x = FreeSugarsg)) + geom_density(color = "darkblue", fill = "lightblue")
+
+# scatter plot with free sugar intake on the x axis and BMI on the y axis
+p2 <- ggplot(FinalDataTemp, aes(x = FreeSugarsg, y = bmival))
+p2 + geom_point(color = "grey0")+ labs(x = "Free Sugars",  y = "BMI") + geom_smooth(method = "lm")
+```
+
+### Descriptive Statistics 
+
+```{r desc, echo=TRUE, warning=FALSE}
+# frequency table - weight statuses 
+table(FinalDataTemp$bmi_eth)
+
+# mean and standard deviation of age across weight statuses 
+FinalDataTemp %>% group_by(bmi_eth) %>% summarise_at(vars(age, eqvinc), list(mean = mean, sd = sd))
+sd(FinalDataTemp$age) # standard deviation of age 
+# performing a t-test to compare the mean age across weight statuses 
+boxplot(FinalDataTemp$age ~ FinalDataTemp$bmi_eth)
+t.test (age ~ bmi_eth, var.equal=TRUE, data = FinalDataTemp)
+
+# ethnicity across weight status 
+table(FinalDataTemp$EthGrpGB, FinalDataTemp$bmi_eth)
+
+# converting equivalised household income into three categories (tertiles)
+FinalDataTemp <- FinalDataTemp %>%
+  mutate(tertiles = ntile(eqvinc, 3)) %>%
+  mutate(tertiles = if_else(tertiles == 1, 'Low', if_else(tertiles == 2, 'Medium', 'High')))
+# equivalised income across weight status 
+table(FinalDataTemp$tertiles, FinalDataTemp$bmi_eth)
+# chi-square test (Categorical variables - income tertiles and weight status)
+chisq.test(FinalDataTemp$tertiles, FinalDataTemp$bmi_eth, correct = FALSE)
+
+# gender across weight statuses 
+table(FinalDataTemp$Sex, FinalDataTemp$bmi_eth)
+# chi-square test (Categorical variables - gender and weight status)
+chisq.test(FinalDataTemp$Sex, FinalDataTemp$bmi_eth, correct = FALSE)
+
+# qualifications across weight statuses 
+table(FinalDataTemp$qual7, FinalDataTemp$bmi_eth)
+# chi-square test (Categorical variables - educational qualifications and weight status)
+chisq.test(FinalDataTemp$qual7, FinalDataTemp$bmi_eth, correct = FALSE)
+
+# presence of children across weight statuses 
+table(FinalDataTemp$NumCh118, FinalDataTemp$bmi_eth)
+# chi-square test (Categorical variables - presence of children and weight status)
+chisq.test(FinalDataTemp$NumCh118, FinalDataTemp$bmi_eth, correct = FALSE)
+
+# current cigarette smoking status across weight statuses 
+table(FinalDataTemp$cigst2, FinalDataTemp$bmi_eth)
+# chi-square test (Categorical variables - cig. smoking status and weight status)
+chisq.test(FinalDataTemp$cigst2, FinalDataTemp$bmi_eth, correct = FALSE)
+
+# saturated fat intake status across weight status 
+# calculating daily caloric intake from saturated fats alone 
+FinalDataTemp <- FinalDataTemp %>% mutate(SF_calories = Saturatedfattyacidsg*9)
+# creating a new column to determine if a calories from saturated fat exceed 10% of total caloric intake
+FinalDataTemp <- FinalDataTemp %>% mutate(SF_Status = case_when(SF_calories >= 0.10*Energykcal ~ "Yes", SF_calories < 0.10*Energykcal ~ "No"))
+# frequency table (Saturated Fat Intake and Weight Status)
+table(FinalDataTemp$SF_Status, FinalDataTemp$bmi_eth)
+# chi-square test (Categorical variables - saturated fat intake status and weight status)
+chisq.test(FinalDataTemp$SF_Status, FinalDataTemp$bmi_eth, correct = FALSE)
+
+# free sugar intake status across weight status 
+# calculating daily caloric intake from free sugars alone 
+FinalDataTemp <- FinalDataTemp %>% mutate(FS_calories = FreeSugarsg*4)
+# creating a new column to determine if a calories from free sugars exceed 10% of total caloric intake
+FinalDataTemp <- FinalDataTemp %>% mutate(FS_Status = case_when(FS_calories >= 0.10*Energykcal ~ "Yes", FS_calories < 0.10*Energykcal ~ "No"))
+# frequency table (Free Sugar Intake and Weight Status)
+table(FinalDataTemp$FS_Status, FinalDataTemp$bmi_eth)
+# chi-square test (Categorical variables - free sugar intake status and weight status)
+chisq.test(FinalDataTemp$FS_Status, FinalDataTemp$bmi_eth, correct = FALSE)
+
+```
+
+
+### Multiple Linear Regression 
+
+#### Adding covariates to the model 
+
+Including age, gender, educational attainments, presence of children and cigarette smoking status as predictors and BMI as the outcome variable 
+
+```{r covariates, echo = TRUE, warning = FALSE}
+FinalDataTemp$qual7 <- relevel(FinalDataTemp$qual7, ref = "No qualifications")
+lm1 <- lm(bmival ~ age + Sex + qual7 + NumCh118 +cigst2, data = FinalDataTemp)
+summary(lm1)
+# confidence intervals 
+confint(lm1,level = 0.95)
+```
+
+#### Adding the primary predictors to the model 
+
+Including saturated fatty acids intake and free sugars intake to the model controlling for the covariates 
+
+```{r lm2, echo = TRUE, warning = FALSE}
+FinalDataTemp$qual7 <- relevel(FinalDataTemp$qual7, ref = "No qualifications")
+lm2 <- lm(bmival ~ age + Sex + qual7 + NumCh118 +cigst2 +Saturatedfattyacidsg + FreeSugarsg, data = FinalDataTemp)
+summary(lm2)
+confint(lm2, level = 0.95)
+```
+
+#### Including ethnicity and income as possible predictors (main effects)
+
+```{r lm3, echo = TRUE, warning = FALSE}
+FinalDataTemp$qual7 <- relevel(FinalDataTemp$qual7, ref = "No qualifications")
+FinalDataTemp$EthGrpGB <- relevel(FinalDataTemp$EthGrpGB, ref = 1)
+lm3 <- lm(bmival ~ age + Sex + qual7 + NumCh118 +cigst2 +Saturatedfattyacidsg + FreeSugarsg + EthGrpGB + eqvinc, data = FinalDataTemp)
+summary(lm3)
+confint(lm3,  level = 0.95)
+```
+
+#### Interaction Effects 
+
+```{r lm4, echo=TRUE, warning=FALSE}
+lm4 <- lm(bmival ~ age + Sex + qual7 + NumCh118 +cigst2 +Saturatedfattyacidsg + FreeSugarsg + EthGrpGB + eqvinc + Saturatedfattyacidsg*EthGrpGB +FreeSugarsg *EthGrpGB + Saturatedfattyacidsg*eqvinc + FreeSugarsg * eqvinc + Saturatedfattyacidsg*EthGrpGB*eqvinc + FreeSugarsg*EthGrpGB*eqvinc, data = FinalDataTemp)
+summary(lm4)
+table(FinalDataTemp$EthGrpGB)
+confint(lm4, level = 0.95)
+
+# finding the mean income of each tertile 
+data_mean <- aggregate(x = eqvinc ~ tertiles,              
+                       data = FinalDataTemp,
+                       FUN = mean)
+```
+
+#### Model diagnostics 
+
+```{r diagnostics, echo=TRUE, warning=FALSE}
+autoplot(lm4)
+```
+

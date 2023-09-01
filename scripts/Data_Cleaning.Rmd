@@ -1,0 +1,165 @@
+---
+title: "MSc Dissertation"
+author: '220225605'
+date: "`r Sys.Date()`"
+output:
+  word_document: default
+  html_document: default
+---
+
+# MSc Dissertation  
+
+## Does ethnicity and income moderate the relationship between the consumption of saturated fats and free sugars and BMI?  
+
+### Loading the required libraries  
+
+```{r setup, echo = TRUE, warning = FALSE}
+library(here)
+library(tidyverse)
+library(naniar)
+```
+
+### Importing required datasets (Waves 1 to 4)
+
+```{r import1, echo = TRUE, warning = FALSE}
+# opening person level dietary records for waves 1 to 4
+PLDR14 <- read_csv(here("data","PersonLevel1-4.csv"))
+
+# retaining required columns from the data-set above 
+PLDR14 <- PLDR14 %>% select(seriali, Ndays, Saturatedfattyacidsg, FreeSugarsg, Energykcal) 
+
+# opening individual level data for waves 1 to 4 
+Indiv14 <- read_csv(here("data", "Indiv1-4.csv"))
+
+# retaining required columns from the data-set above 
+Indiv14 <- Indiv14 %>% select(Sex, age, eqvinc, EthGrG, qual7, cigst2, NumCh118, seriali, bmival, CutDown, DMHSize)
+
+# renaming a column so that the datasets (PLDR14 & Indiv14) can be merged 
+Indiv14 <- Indiv14 %>% rename(EthGrpGB = EthGrG)
+
+# merging the two datasets together
+Data14 <- merge(x = Indiv14, y = PLDR14, by = "seriali", all.x = TRUE)
+```
+
+### Importing required datasets (Waves 5 to 6)
+
+```{r import2, echo = TRUE, warning = FALSE}
+# opening person level dietary records for waves 5 to 6
+PLDR56 <- read_csv(here("data","PersonLevel5-6.csv"))
+
+# retaining required columns from the data-set above 
+PLDR56 <- PLDR56 %>% select(seriali, Ndays, Saturatedfattyacidsg, FreeSugarsg, Energykcal)
+
+# opening individual level data for waves 5 to 6 
+Indiv56 <- read_csv(here("data", "Indiv5-6.csv"))
+
+# retaining required columns from the data-set above 
+Indiv56 <- Indiv56 %>% select(Sex, age, eqvinc, EthGrpGB, qual7, cigst2, NumCh118, seriali, bmival, CutDown, DMHSize)
+
+# merging the two datasets together
+Data56 <- merge(x = Indiv56, y = PLDR56, by = "seriali", all.x = TRUE)
+```
+
+### Merging data-sets from 2008/2009 - 2013/2014
+
+```{r merge, echo = TRUE, warning = FALSE}
+FinalData <- rbind(Data14, Data56)
+```
+
+### Removing respondents below the age of 18 
+
+```{r adults, echo = TRUE, warning = FALSE}
+FinalData <- FinalData[FinalData$age > 17,]
+```
+
+### Dealing with missing values 
+
+```{r missing, echo = TRUE, warning = FALSE}
+# removing rows with the following values: -1 (not applicable), -4 (not applicable to survey year), -8 (Don't know/ Can't say), -9 (Refusal)
+FinalData <- FinalData %>% replace_with_na(replace = list(bmival = c(-1, -4, -8, -9), Saturatedfattyacidsg = c(-1,-4, -8, -9), FreeSugarsg = c(-1, -4, -8, -9), eqvinc = c(-1,-4, -8, -9), cigst2 = c(-1,-4, -8, -9), NumCh118 = c(-1,-4, -8, -9), qual7 = c(-1,-4, -8, -9), Energykcal = c(-1,-4, -8, -9), DMHSize = c(-1,-4, -8, -9), CutDown = c(-1,-4, -8, -9), EthGrpGB = c(-1, -4, -8, -9)))
+# drop rows with missing values 
+FinalData <- FinalData %>% drop_na()
+```
+
+### Recoding the ethnicity column 
+
+```{r ethnicity, echo = TRUE, warning = FALSE}
+# white
+FinalData$EthGrpGB[FinalData$EthGrpGB == 2] <- 1
+FinalData$EthGrpGB[FinalData$EthGrpGB == 3] <- 1
+FinalData$EthGrpGB[FinalData$EthGrpGB == 4] <- 1
+# south asian 
+FinalData$EthGrpGB[FinalData$EthGrpGB == 9] <- 2
+FinalData$EthGrpGB[FinalData$EthGrpGB == 10] <- 2
+FinalData$EthGrpGB[FinalData$EthGrpGB == 11] <- 2
+# black 
+FinalData$EthGrpGB[FinalData$EthGrpGB == 13] <- 3
+FinalData$EthGrpGB[FinalData$EthGrpGB == 14] <- 3
+FinalData$EthGrpGB[FinalData$EthGrpGB == 15] <- 3
+
+# chinese 
+FinalData$EthGrpGB[FinalData$EthGrpGB == 16] <- 4
+
+# arab 
+FinalData$EthGrpGB[FinalData$EthGrpGB == 17] <- 5
+
+# dropping rows for mixed and 'any other' ethnicity groups 
+FinalData <- FinalData %>% replace_with_na(replace = list(EthGrpGB = c(5, 6, 7, 8, 12, 18)))
+FinalData <- FinalData %>% drop_na()
+```
+
+### Labelling factor variables 
+
+```{r factor, echo = TRUE, warning = FALSE}
+# converting numeric variables to factor variables 
+# sex 
+FinalData$Sex <-  cut(
+  FinalData$Sex, 2, labels = c(
+    'Male', 
+    'Female'))
+ 
+# number of children (converting a continuous variable to a binary, categorical variable)
+FinalData$NumCh118[FinalData$NumCh118 > 0] <- "Have Children"
+FinalData$NumCh118[FinalData$NumCh118 == 0] <- "Do not have Children"
+FinalData$NumCh118 <- as.factor(FinalData$NumCh118)
+
+# cigarette smoking status (converting a polytomous categorical variable to a binary, categorical variable)
+FinalData$cigst2[FinalData$cigst2 == 5] <- "Non-smoker"
+FinalData$cigst2[FinalData$cigst2 < 5] <- "Smoker"
+FinalData$cigst2 <- as.factor(FinalData$cigst2)
+
+# educational qualifications (converting a polytomous categorical variable to a binary, categorical variable)
+FinalData$qual7[FinalData$qual7 <= 2] <- "Higher education and above"
+FinalData$qual7[FinalData$qual7 == 3] <- "A level or equivalent"
+FinalData$qual7[FinalData$qual7 == 4] <- "GCSE or equivalent"
+FinalData$qual7[FinalData$qual7 == 5] <- "GCSE or equivalent"
+FinalData$qual7[FinalData$qual7 == 6] <- "Foreign or other qualifications"
+FinalData$qual7[FinalData$qual7 == 7] <- "No qualifications"
+FinalData$qual7[FinalData$qual7 == 8] <- "Still in FT education"
+FinalData$qual7 <- as.factor(FinalData$qual7)
+```
+
+### Categorise the outcome variable bmival for the logistic regression model 
+
+```{r obese, echo = TRUE, warning = FALSE}
+# using a single bmi cutoff point to categorise obesity
+FinalData <- FinalData %>% mutate(bmi_uni = case_when(bmival >= 30 ~ "Obese", bmival < 30 ~ "Not Obese"))
+
+# using multiple bmi cutoffs to categorise obesity on the basis of ethnicity 
+FinalData <- FinalData %>% mutate(bmi_eth = case_when(EthGrpGB = 1 & bmival >=30 ~ 'Obese', EthGrpGB = 1 & bmival < 30 ~ "Not Obese", EthGrpGB = 2 & bmival >=24 ~ 'Obese', EthGrpGB = 2 & bmival < 24 ~ "Not Obese", EthGrpGB = 3 & bmival >=28 ~ 'Obese', EthGrpGB = 3 & bmival < 28 ~ "Not Obese", EthGrpGB = 4 & bmival >=27 ~ 'Obese', EthGrpGB = 4 & bmival < 27 ~ "Not Obese"))
+
+# converting character/numeric variables into factor variables      
+FinalData$bmi_uni <- as.factor(FinalData$bmi_uni)
+FinalData$bmi_eth <- as.factor(FinalData$bmi_eth)
+FinalData$EthGrpGB <- as.factor(FinalData$EthGrpGB)
+```
+
+### Saving the processed data 
+```{r save, echo = TRUE, warning = FALSE}
+# save file
+save(FinalData, file = "processed data/ProcessedData.RData")
+save(FinalData, file = "processed data/ProcessedData.csv")
+```
+ 
+
+
