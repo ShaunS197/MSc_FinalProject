@@ -8,3 +8,7 @@ The National Diet and Nutrition Survey (NDNS) is a continuous, cross-sectional s
 Data from Wave 1 to Wave 6 of the National Diet and Nutrition Survey (NDNS) [2008-2019] was used for the purpose of this study. This dataset is publicly available and can be accessed via this link (https://beta.ukdataservice.ac.uk/datacatalogue/studies/study?id=6533). The data for all six years were accessed on the 5th of July, 2023. 
 
 ## Project Organisation
+1. The 'data' folder contains the raw data that was used in the analyses
+2. The 'notes' folder contains a codebook explaining the variable names and levels.
+3. The 'plots' folder contains a visualisation as a .png file.
+4. The 'processed data' contains an .Rdata file with the tidied data.
