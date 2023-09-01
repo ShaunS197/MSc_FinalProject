@@ -12,3 +12,10 @@ Data from Wave 1 to Wave 6 of the National Diet and Nutrition Survey (NDNS) [200
 2. The 'notes' folder contains a codebook explaining the variable names and levels.
 3. The 'plots' folder contains a visualisation as a .png file.
 4. The 'processed data' contains an .Rdata file with the tidied data.
+5. The 'scripts' folder contains a record of the empirical work undertaken.
+
+## Essential libraries that you may need 
+1. here - Version 1.0.1
+2. tidyverse - Version 2.0.0
+3. ggfortify
+4. naniar 
